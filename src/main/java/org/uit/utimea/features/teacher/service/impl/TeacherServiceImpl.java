@@ -98,35 +98,36 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
         if (pageAndFilterDTO.getSortBy() != null && !pageAndFilterDTO.getSortBy().isEmpty()) {
             validateSortBy(pageAndFilterDTO.getSortBy());
         }
-        
+
         TeacherFilter filter = pageAndFilterDTO.getFilter();
         Map<String, Object> keywordMap = toMapUsingReflection(filter, getFieldMapping());
-        
+
         List<String> fields = new ArrayList<>(keywordMap.keySet());
         GenericSpecification<Profile> genericSpec = new GenericSpecification<>();
         Specification<Profile> baseSpec = genericSpec.getSpecification(keywordMap, fields);
-        
+
         // Add teacher filter (must have degree or department)
         Specification<Profile> teacherSpec = (root, query, cb) -> {
-            // Fetch User relationship to avoid lazy loading issues
-            root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+            if (query.getResultType() == null || !query.getResultType().equals(Long.class)) {
+                root.fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+            }
             Predicate hasDegree = cb.isNotNull(root.get("degree"));
             Predicate hasDepartment = cb.isNotNull(root.get("department"));
             return cb.or(hasDegree, hasDepartment);
         };
-        
+
         // Combine specifications
-        Specification<Profile> finalSpec = baseSpec != null 
-                ? baseSpec.and(teacherSpec) 
+        Specification<Profile> finalSpec = baseSpec != null
+                ? baseSpec.and(teacherSpec)
                 : teacherSpec;
-        
+
         Pageable pageable = buildPageable(pageAndFilterDTO);
         Page<Profile> page = specificationExecutor.findAll(finalSpec, pageable);
-        
+
         List<TeacherResponse> content = page.getContent().stream()
                 .map(this::mapEntityToResponse)
                 .toList();
-        
+
         return PaginationHelper.getResponse(page, content);
     }
 
@@ -143,7 +144,7 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
         }
 
         Map<String, Object> map = new HashMap<>();
-        
+
         // Handle records using record components
         if (filter.getClass().isRecord()) {
             java.lang.reflect.RecordComponent[] components = filter.getClass().getRecordComponents();
