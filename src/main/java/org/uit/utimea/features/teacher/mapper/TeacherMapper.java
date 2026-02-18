@@ -2,6 +2,7 @@ package org.uit.utimea.features.teacher.mapper;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.uit.utimea.shared.mapper.MasterDataMapper;
@@ -24,6 +25,7 @@ public class TeacherMapper {
     private final CodeValueRepository codeValueRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${user.default.password.teacher:uit@teacherPsw}")
     private String defaultTeacherPassword;
@@ -35,10 +37,10 @@ public class TeacherMapper {
                 .orElseGet(() -> {
                     Role teacherRole = roleRepository.findByName("Teacher")
                             .orElseThrow(() -> new RuntimeException("Teacher role not found. Make sure RoleInitializr runs first."));
-                    
+
                     User newUser = User.builder()
                             .email(request.email())
-                            .password(defaultTeacherPassword)
+                            .password(passwordEncoder.encode(defaultTeacherPassword))
                             .role(teacherRole)
                             .build();
                     return userRepository.save(newUser);
@@ -49,22 +51,23 @@ public class TeacherMapper {
                 .phoneNumber(request.phoneNumber())
                 .degree(request.degree())
                 .user(user);
-        
+
         if (request.departmentId() != null) {
             CodeValue department = codeValueRepository.findById(request.departmentId())
                     .orElseThrow(() -> new RuntimeException("CodeValue not found with id: " + request.departmentId()));
             builder.department(department);
         }
-        
+
         return builder.build();
     }
+
 
     @Transactional(readOnly = true)
     public TeacherResponse toResponse(Profile entity) {
         if (entity == null) {
             return null;
         }
-        
+
         CodeValueResponse departmentResponse = null;
         if (entity.getDepartment() != null) {
             departmentResponse = CodeValueResponse.builder()
@@ -72,7 +75,7 @@ public class TeacherMapper {
                     .name(entity.getDepartment().getName())
                     .build();
         }
-        
+
         // Fetch User email - handle lazy loading
         String email = null;
         try {
@@ -85,7 +88,7 @@ public class TeacherMapper {
             // This handles cases where Profile was created before User relationship was added
             email = null;
         }
-        
+
         return TeacherResponse.builder()
                 .id(entity.getId())
                 .name(entity.getName())
@@ -102,7 +105,7 @@ public class TeacherMapper {
         entity.setName(request.name());
         entity.setPhoneNumber(request.phoneNumber());
         entity.setDegree(request.degree());
-        
+
         // Update or create User entity
         if (request.email() != null && !request.email().isEmpty()) {
             User user = entity.getUser();
@@ -110,7 +113,7 @@ public class TeacherMapper {
                 // Create new user
                 Role teacherRole = roleRepository.findByName("Teacher")
                         .orElseThrow(() -> new RuntimeException("Teacher role not found. Make sure RoleInitializr runs first."));
-                
+
                 user = User.builder()
                         .email(request.email())
                         .password(defaultTeacherPassword)
@@ -124,7 +127,7 @@ public class TeacherMapper {
                 userRepository.save(user);
             }
         }
-        
+
         if (request.departmentId() != null) {
             CodeValue department = codeValueRepository.findById(request.departmentId())
                     .orElseThrow(() -> new RuntimeException("CodeValue not found with id: " + request.departmentId()));

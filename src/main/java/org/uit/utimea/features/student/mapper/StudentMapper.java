@@ -2,6 +2,7 @@ package org.uit.utimea.features.student.mapper;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.uit.utimea.shared.mapper.MasterDataMapper;
@@ -28,7 +29,7 @@ public class StudentMapper {
     private final MajorSectionRepository majorSectionRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
-
+    private final PasswordEncoder passwordEncoder;
     @Value("${user.default.password.student:uti@studentPsw}")
     private String defaultStudentPassword;
 
@@ -39,10 +40,10 @@ public class StudentMapper {
                 .orElseGet(() -> {
                     Role studentRole = roleRepository.findByName("Student")
                             .orElseThrow(() -> new RuntimeException("Student role not found. Make sure RoleInitializr runs first."));
-                    
+
                     User newUser = User.builder()
                             .email(request.email())
-                            .password(defaultStudentPassword)
+                            .password(passwordEncoder.encode(defaultStudentPassword))
                             .role(studentRole)
                             .build();
                     return userRepository.save(newUser);
@@ -52,28 +53,29 @@ public class StudentMapper {
                 .name(request.name())
                 .phoneNumber(request.phoneNumber())
                 .user(user);
-        
+
         if (request.batchId() != null) {
             CodeValue batch = codeValueRepository.findById(request.batchId())
                     .orElseThrow(() -> new RuntimeException("CodeValue not found with id: " + request.batchId()));
             builder.batch(batch);
         }
-        
+
         if (request.majorSectionId() != null) {
             MajorSection majorSection = majorSectionRepository.findById(request.majorSectionId())
                     .orElseThrow(() -> new RuntimeException("MajorSection not found with id: " + request.majorSectionId()));
             builder.majorSection(majorSection);
         }
-        
+
         return builder.build();
     }
+
 
     @Transactional(readOnly = true)
     public StudentResponse toResponse(Profile entity) {
         if (entity == null) {
             return null;
         }
-        
+
         CodeValueResponse batchResponse = null;
         if (entity.getBatch() != null) {
             batchResponse = CodeValueResponse.builder()
@@ -81,7 +83,7 @@ public class StudentMapper {
                     .name(entity.getBatch().getName())
                     .build();
         }
-        
+
         MajorSectionResponse majorSectionResponse = null;
         if (entity.getMajorSection() != null) {
             majorSectionResponse = MajorSectionResponse.builder()
@@ -89,7 +91,7 @@ public class StudentMapper {
                     .name(entity.getMajorSection().getName())
                     .build();
         }
-        
+
         // Fetch User email - handle lazy loading
         String email = null;
         try {
@@ -102,7 +104,7 @@ public class StudentMapper {
             // This handles cases where Profile was created before User relationship was added
             email = null;
         }
-        
+
         return StudentResponse.builder()
                 .id(entity.getId())
                 .name(entity.getName())
@@ -118,7 +120,7 @@ public class StudentMapper {
     public void updateEntity(Profile entity, StudentRequest request) {
         entity.setName(request.name());
         entity.setPhoneNumber(request.phoneNumber());
-        
+
         // Update or create User entity
         if (request.email() != null && !request.email().isEmpty()) {
             User user = entity.getUser();
@@ -126,7 +128,7 @@ public class StudentMapper {
                 // Create new user
                 Role studentRole = roleRepository.findByName("Student")
                         .orElseThrow(() -> new RuntimeException("Student role not found. Make sure RoleInitializr runs first."));
-                
+
                 user = User.builder()
                         .email(request.email())
                         .password(defaultStudentPassword)
@@ -140,7 +142,7 @@ public class StudentMapper {
                 userRepository.save(user);
             }
         }
-        
+
         if (request.batchId() != null) {
             CodeValue batch = codeValueRepository.findById(request.batchId())
                     .orElseThrow(() -> new RuntimeException("CodeValue not found with id: " + request.batchId()));
@@ -148,7 +150,7 @@ public class StudentMapper {
         } else {
             entity.setBatch(null);
         }
-        
+
         if (request.majorSectionId() != null) {
             MajorSection majorSection = majorSectionRepository.findById(request.majorSectionId())
                     .orElseThrow(() -> new RuntimeException("MajorSection not found with id: " + request.majorSectionId()));

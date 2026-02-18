@@ -39,6 +39,7 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
 
     @Override
     protected Profile mapRequestToEntity(TeacherRequest request) {
+        validateTeacherRequest(request);
         return teacherMapper.toEntity(request);
     }
 
@@ -49,6 +50,7 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
 
     @Override
     protected void updateEntityFromRequest(Profile entity, TeacherRequest request) {
+        validateTeacherRequest(request);
         teacherMapper.updateEntity(entity, request);
     }
 
@@ -98,14 +100,14 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
         if (pageAndFilterDTO.getSortBy() != null && !pageAndFilterDTO.getSortBy().isEmpty()) {
             validateSortBy(pageAndFilterDTO.getSortBy());
         }
-
+        
         TeacherFilter filter = pageAndFilterDTO.getFilter();
         Map<String, Object> keywordMap = toMapUsingReflection(filter, getFieldMapping());
-
+        
         List<String> fields = new ArrayList<>(keywordMap.keySet());
         GenericSpecification<Profile> genericSpec = new GenericSpecification<>();
         Specification<Profile> baseSpec = genericSpec.getSpecification(keywordMap, fields);
-
+        
         // Add teacher filter (must have degree or department)
         Specification<Profile> teacherSpec = (root, query, cb) -> {
             if (query.getResultType() == null || !query.getResultType().equals(Long.class)) {
@@ -115,19 +117,19 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
             Predicate hasDepartment = cb.isNotNull(root.get("department"));
             return cb.or(hasDegree, hasDepartment);
         };
-
+        
         // Combine specifications
-        Specification<Profile> finalSpec = baseSpec != null
-                ? baseSpec.and(teacherSpec)
+        Specification<Profile> finalSpec = baseSpec != null 
+                ? baseSpec.and(teacherSpec) 
                 : teacherSpec;
-
+        
         Pageable pageable = buildPageable(pageAndFilterDTO);
         Page<Profile> page = specificationExecutor.findAll(finalSpec, pageable);
-
+        
         List<TeacherResponse> content = page.getContent().stream()
                 .map(this::mapEntityToResponse)
                 .toList();
-
+        
         return PaginationHelper.getResponse(page, content);
     }
 
@@ -144,7 +146,7 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
         }
 
         Map<String, Object> map = new HashMap<>();
-
+        
         // Handle records using record components
         if (filter.getClass().isRecord()) {
             java.lang.reflect.RecordComponent[] components = filter.getClass().getRecordComponents();
@@ -179,5 +181,36 @@ public class TeacherServiceImpl extends BaseServiceImpl<Profile, TeacherRequest,
         }
 
         return map;
+    }
+
+    private void validateTeacherRequest(TeacherRequest request) {
+        // Validate name is required
+        if (request.name() == null || request.name().trim().isEmpty()) {
+            throw new IllegalArgumentException("Name is required");
+        }
+
+        // Validate phone number is required and contains only digits
+        if (request.phoneNumber() == null || request.phoneNumber().trim().isEmpty()) {
+            throw new IllegalArgumentException("Phone number is required");
+        }
+        String phoneNumber = request.phoneNumber().trim();
+        if (!phoneNumber.matches("^[0-9]+$")) {
+            throw new IllegalArgumentException("Phone number must contain only digits");
+        }
+
+        // Validate email is required
+        if (request.email() == null || request.email().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        // Validate degree is required
+        if (request.degree() == null || request.degree().trim().isEmpty()) {
+            throw new IllegalArgumentException("Degree is required");
+        }
+
+        // Validate department is required
+        if (request.departmentId() == null) {
+            throw new IllegalArgumentException("Department is required");
+        }
     }
 }

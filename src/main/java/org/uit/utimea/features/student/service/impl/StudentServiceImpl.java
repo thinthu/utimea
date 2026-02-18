@@ -39,6 +39,7 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
 
     @Override
     protected Profile mapRequestToEntity(StudentRequest request) {
+        validateStudentRequest(request);
         return studentMapper.toEntity(request);
     }
 
@@ -49,6 +50,7 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
 
     @Override
     protected void updateEntityFromRequest(Profile entity, StudentRequest request) {
+        validateStudentRequest(request);
         studentMapper.updateEntity(entity, request);
     }
 
@@ -101,14 +103,14 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
         if (pageAndFilterDTO.getSortBy() != null && !pageAndFilterDTO.getSortBy().isEmpty()) {
             validateSortBy(pageAndFilterDTO.getSortBy());
         }
-
+        
         StudentFilter filter = pageAndFilterDTO.getFilter();
         Map<String, Object> keywordMap = toMapUsingReflection(filter, getFieldMapping());
-
+        
         List<String> fields = new ArrayList<>(keywordMap.keySet());
         GenericSpecification<Profile> genericSpec = new GenericSpecification<>();
         Specification<Profile> baseSpec = genericSpec.getSpecification(keywordMap, fields);
-
+        
         // Add student filter (must have batch or majorSection)
         Specification<Profile> studentSpec = (root, query, cb) -> {
             if (!query.getResultType().equals(Long.class)) {
@@ -118,19 +120,19 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
             Predicate hasMajorSection = cb.isNotNull(root.get("majorSection"));
             return cb.or(hasBatch, hasMajorSection);
         };
-
+        
         // Combine specifications
-        Specification<Profile> finalSpec = baseSpec != null
-                ? baseSpec.and(studentSpec)
+        Specification<Profile> finalSpec = baseSpec != null 
+                ? baseSpec.and(studentSpec) 
                 : studentSpec;
-
+        
         Pageable pageable = buildPageable(pageAndFilterDTO);
         Page<Profile> page = specificationExecutor.findAll(finalSpec, pageable);
-
+        
         List<StudentResponse> content = page.getContent().stream()
                 .map(this::mapEntityToResponse)
                 .toList();
-
+        
         return PaginationHelper.getResponse(page, content);
     }
 
@@ -147,7 +149,7 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
         }
 
         Map<String, Object> map = new HashMap<>();
-
+        
         // Handle records using record components
         if (filter.getClass().isRecord()) {
             java.lang.reflect.RecordComponent[] components = filter.getClass().getRecordComponents();
@@ -182,5 +184,31 @@ public class StudentServiceImpl extends BaseServiceImpl<Profile, StudentRequest,
         }
 
         return map;
+    }
+
+    private void validateStudentRequest(StudentRequest request) {
+        // Validate phone number is required and contains only digits
+        if (request.phoneNumber() == null || request.phoneNumber().trim().isEmpty()) {
+            throw new IllegalArgumentException("Phone number is required");
+        }
+        String phoneNumber = request.phoneNumber().trim();
+        if (!phoneNumber.matches("^[0-9]+$")) {
+            throw new IllegalArgumentException("Phone number must contain only digits");
+        }
+
+        // Validate email is required
+        if (request.email() == null || request.email().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        // Validate batch is required
+        if (request.batchId() == null) {
+            throw new IllegalArgumentException("Batch is required");
+        }
+
+        // Validate major section is required
+        if (request.majorSectionId() == null) {
+            throw new IllegalArgumentException("Major Section is required");
+        }
     }
 }

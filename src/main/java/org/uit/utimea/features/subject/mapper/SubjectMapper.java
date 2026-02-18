@@ -65,7 +65,7 @@ public class SubjectMapper {
         if (entity == null) {
             return null;
         }
-        
+
         List<CodeValueResponse> subjectTypesResponse = null;
         if (entity.getSubjectTypes() != null) {
             subjectTypesResponse = entity.getSubjectTypes().stream()
@@ -75,7 +75,7 @@ public class SubjectMapper {
                             .build())
                     .collect(Collectors.toList());
         }
-        
+
         CodeValueResponse roomTypeResponse = null;
         if (entity.getRoomType() != null) {
             roomTypeResponse = CodeValueResponse.builder()
@@ -90,7 +90,7 @@ public class SubjectMapper {
                     .map(teacherMapper::toResponse)
                     .collect(Collectors.toList());
         }
-        
+
         return SubjectResponse.builder()
                 .id(entity.getId())
                 .code(entity.getCode())
