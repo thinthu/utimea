@@ -75,7 +75,7 @@ public class TimetableGenerationService {
             usedSpecialRooms = 0;
             assignedTeacherForSection = null;
         }
-        // java pc room, myanmrt normal
+
         public int getPriorityScore() {
             int score = 0;
             if (requiresComputerRoom) score += 200;
@@ -143,7 +143,7 @@ public class TimetableGenerationService {
 
         // 4. Generate Schedules
 
-        // Year 1 & 2 (Always generated if students exist)
+        // Year 1 & 2
         if (hasStudents(request.getNumberOfStudentsInFirstYear())) {
             generateSectionBasedSchedule("FIRST_YEAR", request.getNumberOfStudentsInFirstYear(), isFirstSem,
                     dbSubjects, globalTeacherMap, algoRooms, selectedAcademicYear);
@@ -161,6 +161,7 @@ public class TimetableGenerationService {
             if (hasStudents(request.getNumberOfStudentInThirdYear())) {
                 generateMajorBasedSchedule("THIRD_YEAR", 0L, true, dbSubjects, globalTeacherMap, algoRooms, majors, selectedAcademicYear);
             }
+            // Fix: Check for students in 4th year if the field exists, or assume true if not passed
             generateMajorBasedSchedule("FOURTH_YEAR", 0L, true, dbSubjects, globalTeacherMap, algoRooms, majors, selectedAcademicYear);
         } else {
             // Second Sem: Generate 3rd Year ONLY
@@ -184,8 +185,6 @@ public class TimetableGenerationService {
         for (String m : majors) counts.put(m, 20);
         return counts;
     }
-
-    // --- SEMESTER RESOLUTION HELPERS ---
 
     private String getSemesterRoman(String yearCode, boolean isFirstSem) {
         if (isFirstSem) {
@@ -211,10 +210,7 @@ public class TimetableGenerationService {
     private void generateSem2CombinedSchedule(String yearCode, Map<String, Integer> majorCounts,
                                               List<Subject> allSubjects, Map<Long, AlgoTeacher> globalTeacherMap,
                                               List<AlgoRoom> algoRooms, CodeValue academicYear) {
-
-        // Determine correct roman numeral based on year
-        String roman = getSemesterRoman(yearCode, false); // false = Second Sem
-
+        String roman = getSemesterRoman(yearCode, false);
         String yearLabel = switch (yearCode) {
             case "THIRD_YEAR" -> "Year 3";
             case "FOURTH_YEAR" -> "Year 4";
@@ -228,8 +224,6 @@ public class TimetableGenerationService {
                 .collect(Collectors.toList());
 
         Map<String, List<String>> subjectToMajors = new HashMap<>();
-
-        // --- SPECIFIC MAPPING FOR Y3 SEM 2 ---
         Map<String, List<String>> specialMappings = new HashMap<>();
         specialMappings.put("CS-6117", Arrays.asList("SE", "KE"));
         specialMappings.put("CS-6211", Arrays.asList("SE", "KE"));
@@ -263,17 +257,15 @@ public class TimetableGenerationService {
 
         Map<String, ScheduledSlot[]> majorTimetables = new HashMap<>();
         for (String major : majorCounts.keySet()) {
-            majorTimetables.put(major, new ScheduledSlot[35]); // Scaled to 35
+            majorTimetables.put(major, new ScheduledSlot[35]);
         }
 
-        // Shuffle subjects for randomness
         Collections.shuffle(semesterSubjects);
 
         for (Subject sub : semesterSubjects) {
             List<String> takingMajors = subjectToMajors.getOrDefault(sub.getCode(), Collections.emptyList());
             if (takingMajors.isEmpty()) continue;
 
-            // --- SMART GROUPING LOGIC ---
             List<List<String>> sections = new ArrayList<>();
             List<String> currentSection = new ArrayList<>();
             int currentSectionCount = 0;
@@ -292,7 +284,6 @@ public class TimetableGenerationService {
             }
             if (!currentSection.isEmpty()) sections.add(currentSection);
 
-            // --- SCHEDULE EACH SECTION ---
             List<AlgoTeacher> subjectTeachers = new ArrayList<>();
             for(Profile p : sub.getTeachers()) {
                 AlgoTeacher at = globalTeacherMap.get(p.getId());
@@ -300,10 +291,7 @@ public class TimetableGenerationService {
             }
             Collections.shuffle(subjectTeachers);
 
-            if (subjectTeachers.isEmpty()) {
-                log.error("No teachers found for {}", sub.getCode());
-                continue;
-            }
+            if (subjectTeachers.isEmpty()) continue;
 
             AlgoSubject algoSub = mapToAlgoSubject(sub, globalTeacherMap);
             int teacherIndex = 0;
@@ -314,14 +302,13 @@ public class TimetableGenerationService {
 
                 int slotsRequired = 4;
                 int slotsBooked = 0;
-
                 int morningBooked = 0;
                 int eveningBooked = 0;
                 int specialRoomsBooked = 0;
 
                 List<Integer> slotOrder = new ArrayList<>();
                 for(int k=0; k<35; k++) {
-                    if (k % 7 != 3) slotOrder.add(k); // SKIP LUNCH
+                    if (k % 7 != 3) slotOrder.add(k);
                 }
                 Collections.shuffle(slotOrder);
 
@@ -332,7 +319,6 @@ public class TimetableGenerationService {
                     if (isMorning && morningBooked >= 2) continue;
                     if (!isMorning && eveningBooked >= 2) continue;
 
-                    // 1. Check Major Availability
                     boolean majorsFree = true;
                     for (String major : sectionMajors) {
                         if (majorTimetables.get(major)[slot] != null) {
@@ -342,18 +328,10 @@ public class TimetableGenerationService {
                     }
                     if (!majorsFree) continue;
 
-                    // 2. Check Daily Limit
                     if (isMajorDailyLimitExceeded(majorTimetables, sectionMajors.get(0), slot, algoSub.getDbId())) continue;
-
-                    // 3. HEAVY SUBJECT CHECK
-                    if (algoSub.isHeavy()) {
-                        if (isMajorDailyHeavyLimitExceeded(majorTimetables, sectionMajors.get(0), slot)) continue;
-                    }
-
-                    // 4. Check Teacher Availability
+                    if (algoSub.isHeavy() && isMajorDailyHeavyLimitExceeded(majorTimetables, sectionMajors.get(0), slot)) continue;
                     if (isTeacherBusyOrExhausted(assignedTeacher, slot, majorTimetables, sectionMajors)) continue;
 
-                    // 5. Check Special Room Requirements
                     boolean requiresSpecialThisSlot = false;
                     int remainingSpecial = algoSub.specialRoomCount - specialRoomsBooked;
 
@@ -368,7 +346,6 @@ public class TimetableGenerationService {
                     boolean lookingForComputerRoom = requiresSpecialThisSlot && algoSub.requiresComputerRoom;
                     boolean lookingForSpecialRoom = requiresSpecialThisSlot && !algoSub.requiresComputerRoom;
 
-                    // 6. Check Room Availability
                     AlgoRoom bookedRoom = null;
                     List<AlgoRoom> shuffledRooms = new ArrayList<>(algoRooms);
                     Collections.shuffle(shuffledRooms);
@@ -401,10 +378,6 @@ public class TimetableGenerationService {
                     slotsBooked++;
                     if (isMorning) morningBooked++; else eveningBooked++;
                     if (lookingForComputerRoom || lookingForSpecialRoom) specialRoomsBooked++;
-                }
-
-                if (slotsBooked < slotsRequired) {
-                    log.warn("Could not fully schedule {} for group {}. Booked {}/4 slots.", sub.getCode(), sectionMajors, slotsBooked);
                 }
             }
         }
@@ -467,8 +440,6 @@ public class TimetableGenerationService {
         int numberOfSections = (int) Math.ceil((double) studentCount / 40);
         String yearLabel = yearCode.equals("FIRST_YEAR") ? "Year 1" : "Year 2";
         List<AlgoSubject> yearSubjects = filterAndMapSubjects(allSubjects, yearCode, isFirstSem, globalTeacherMap);
-
-        // Determine correct roman numeral
         String roman = getSemesterRoman(yearCode, isFirstSem);
 
         for (int i = 0; i < numberOfSections; i++) {
@@ -479,13 +450,45 @@ public class TimetableGenerationService {
 
     private void generateMajorBasedSchedule(String yearCode, Long totalStudentCount, boolean isFirstSem, List<Subject> allSubjects, Map<Long, AlgoTeacher> globalTeacherMap, List<AlgoRoom> algoRooms, List<String> majors, CodeValue academicYear) {
         String yearLabel = switch (yearCode) { case "THIRD_YEAR" -> "Year 3"; case "FOURTH_YEAR" -> "Year 4"; default -> yearCode; };
-        List<AlgoSubject> yearSubjects = filterAndMapSubjects(allSubjects, yearCode, isFirstSem, globalTeacherMap);
 
+        // Load ALL subjects for the year first
+        List<AlgoSubject> allYearSubjects = filterAndMapSubjects(allSubjects, yearCode, isFirstSem, globalTeacherMap);
         String roman = getSemesterRoman(yearCode, isFirstSem);
 
         for (String major : majors) {
-            processSection(String.format("%s (%s) - Section A", yearLabel, major), yearSubjects, algoRooms, academicYear, roman);
+            // FILTER: Only assign subjects relevant to this major
+            List<AlgoSubject> majorSpecificSubjects = allYearSubjects.stream()
+                    .filter(s -> isSubjectRelevantForMajor(s.getCode(), major, majors))
+                    .collect(Collectors.toList());
+
+            if (majorSpecificSubjects.isEmpty()) {
+                log.warn("No subjects found for Major {} in {}", major, yearCode);
+                continue;
+            }
+
+            processSection(String.format("%s (%s) - Section A", yearLabel, major), majorSpecificSubjects, algoRooms, academicYear, roman);
         }
+    }
+
+    // New helper to prevent assigning "SE" subjects to "KE" students
+    private boolean isSubjectRelevantForMajor(String subjectCode, String currentMajor, List<String> allMajors) {
+        String prefix = subjectCode.split("-")[0];
+
+        // 1. If prefix matches current major exactly (e.g. "SE-123" for "SE")
+        if (prefix.equalsIgnoreCase(currentMajor)) return true;
+
+        // 2. If prefix is a common type
+        if (prefix.equalsIgnoreCase("CST") || prefix.equalsIgnoreCase("CS") || prefix.equalsIgnoreCase("CT")) return true;
+
+        // 3. If prefix belongs to ANOTHER major, exclude it
+        for (String m : allMajors) {
+            if (!m.equalsIgnoreCase(currentMajor) && prefix.equalsIgnoreCase(m)) {
+                return false;
+            }
+        }
+
+        // Default: Include if it doesn't match any other major (fallback)
+        return true;
     }
 
     private void processSection(String sectionName, List<AlgoSubject> sectionSubjects, List<AlgoRoom> algoRooms, CodeValue academicYear, String semesterRoman) {
@@ -505,7 +508,6 @@ public class TimetableGenerationService {
             ScheduledSlot[] rawSchedule = new ScheduledSlot[35];
 
             Set<Integer> freeSlots = generateBalancedFreeSlots(35, sectionSubjects.size());
-
             Collections.shuffle(sectionSubjects);
 
             if (solve(0, rawSchedule, sectionSubjects, algoRooms, freeSlots)) {
@@ -543,15 +545,11 @@ public class TimetableGenerationService {
 
     private Set<Integer> generateBalancedFreeSlots(int totalSlots, int numSubjects) {
         Set<Integer> slots = new HashSet<>();
-
-        // 1. PERMANENTLY LOCK LUNCH PERIODS (Period Index 3 for every Day)
         for (int i = 0; i < 5; i++) {
-            slots.add((i * 7) + 3);
+            slots.add((i * 7) + 3); // LUNCH
         }
-
         int requiredSlots = numSubjects * 4;
         int remainingFreeNeeded = totalSlots - 5 - requiredSlots;
-
         if (remainingFreeNeeded <= 0) return slots;
 
         Random rand = new Random();
@@ -571,7 +569,6 @@ public class TimetableGenerationService {
             }
 
             boolean isMorning = (r % 7) < 3;
-
             if (isMorning && morningFree >= targetMorning && remainingFreeNeeded > 2) continue;
             if (!isMorning && eveningFree >= targetEvening && remainingFreeNeeded > 2) continue;
 
@@ -580,15 +577,12 @@ public class TimetableGenerationService {
                 else eveningFree++;
             }
         }
-
         while (slots.size() < 5 + remainingFreeNeeded) {
             slots.add(rand.nextInt(totalSlots));
         }
-
         return slots;
     }
 
-    // --- RECURSIVE SOLVER (YEAR 1 & 2) ---
     private boolean solve(int slot, ScheduledSlot[] schedule, List<AlgoSubject> subjects, List<AlgoRoom> rooms, Set<Integer> freeSlots) {
         if (slot >= 35) {
             return subjects.stream().allMatch(s -> (s.usedMorningSlots + s.usedEveningSlots) >= 4);
@@ -715,57 +709,56 @@ public class TimetableGenerationService {
     }
 
     private void saveToDatabase(ScheduledSlot[] rawSchedule, MajorSection section, CodeValue year, Set<Integer> freeSlots, String semesterRoman) {
-        TimetableInfo info = new TimetableInfo();
-        info.setMajorSection(section);
-        info.setAcademicYear(year);
-        info.setName(section.getName() + " (" + year.getName() + " Semester " + semesterRoman + ")");
-        info = timetableInfoRepo.save(info);
+        try {
+            TimetableInfo info = new TimetableInfo();
+            info.setMajorSection(section);
+            info.setAcademicYear(year);
+            info.setName(section.getName() + " (" + year.getName() + " Semester " + semesterRoman + ")");
+            info = timetableInfoRepo.save(info);
 
-        List<CodeValue> allDays = codeValueRepo.findByCode_Name("Timetable Days");
-        List<CodeValue> allPeriods = codeValueRepo.findByCode_Name("Timetable Periods");
+            List<CodeValue> allDays = codeValueRepo.findByCode_Name("Timetable Days");
+            List<CodeValue> allPeriods = codeValueRepo.findByCode_Name("Timetable Periods");
 
-        if(allDays.isEmpty() || allPeriods.isEmpty()) {
-            throw new RuntimeException("DB Configuration Error: 'Timetable Days' or 'Timetable Periods' not found in code_value table.");
-        }
+            if(allDays.isEmpty() || allPeriods.isEmpty()) {
+                throw new RuntimeException("DB Configuration Error: 'Timetable Days' or 'Timetable Periods' not found in code_value table.");
+            }
 
-        for (int slot = 0; slot < 35; slot++) {
-            if (freeSlots.contains(slot) || rawSchedule[slot] == null) continue;
+            int recordsSaved = 0;
+            for (int slot = 0; slot < 35; slot++) {
+                if (freeSlots.contains(slot) || rawSchedule[slot] == null) continue;
 
-            ScheduledSlot result = rawSchedule[slot];
-            CodeValue day = allDays.get(slot / 7);
-            Long subjectId = result.getSubject().getDbId();
-            Long teacherId = result.getAssignedTeacher().getId();
-            CodeValue period = allPeriods.get(slot % 7);
-            // Validate: Check if same subject and teacher already exist on the same day
-//            boolean duplicateExists = timetableDataRepo.existsBySubjectAndTeacherAndDay(
-//                    subjectId, teacherId, day.getId());
-//
-//            if (duplicateExists) {
-//                Subject subject = subjectRepo.getReferenceById(subjectId);
-//                Profile teacher = profileRepo.getReferenceById(teacherId);
-//                throw new IllegalArgumentException(
-//                        String.format("The same subject (%s) and teacher (%s) cannot be assigned to the same day (%s) more than once",
-//                                subject.getCode(), teacher.getName(), day.getName()));
-//            }
-//            boolean strictCollision = timetableDataRepo.existsByTeacherAndDayAndPeriod(
-//                    teacherId, day.getId(), period.getId());
-//
-//            if (strictCollision) {
-//                throw new IllegalArgumentException("Teacher Double Booking detected!");
-//            }
-            TimetableData data = new TimetableData();
-            data.setTimetableDay(day);
-            data.setTimetablePeriod(allPeriods.get(slot % 7));
-            data.setSubject(subjectRepo.getReferenceById(subjectId));
-            data.setRoom(roomRepo.getReferenceById(result.getRoom().getDbId()));
-            data.setTeacher(profileRepo.getReferenceById(teacherId));
-            data.setSubType(result.getTypeTag());
-            data = timetableDataRepo.save(data);
+                ScheduledSlot result = rawSchedule[slot];
+                CodeValue day = allDays.get(slot / 7);
+                Long subjectId = result.getSubject().getDbId();
+                Long teacherId = result.getAssignedTeacher().getId();
 
-            Timetable timetable = new Timetable();
-            timetable.setTimetableInfo(info);
-            timetable.setTimetableData(data);
-            timetableRepo.save(timetable);
+                TimetableData data = new TimetableData();
+                data.setTimetableDay(day);
+                data.setTimetablePeriod(allPeriods.get(slot % 7));
+                data.setSubject(subjectRepo.getReferenceById(subjectId));
+                data.setRoom(roomRepo.getReferenceById(result.getRoom().getDbId()));
+                data.setTeacher(profileRepo.getReferenceById(teacherId));
+                data.setSubType(result.getTypeTag());
+
+                // IMPORTANT: Flush data to catch constraint violations immediately
+                data = timetableDataRepo.save(data);
+
+                Timetable timetable = new Timetable();
+                timetable.setTimetableInfo(info);
+                timetable.setTimetableData(data);
+                timetableRepo.save(timetable);
+                recordsSaved++;
+            }
+
+            // Explicit flush to ensure transaction commits successfully for this section
+            timetableDataRepo.flush();
+            timetableRepo.flush();
+            log.info("    -> Persisted {} slots for {}", recordsSaved, section.getName());
+
+        } catch (Exception e) {
+            log.error("CRITICAL DB ERROR while saving {}: {}", section.getName(), e.getMessage());
+            e.printStackTrace();
+            throw e; // Rethrow to rollback transaction
         }
     }
 

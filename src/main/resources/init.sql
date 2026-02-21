@@ -1,4 +1,10 @@
 -- =============================================
+-- 0. ENSURE CONSTRAINTS EXIST (Fixes ON CONFLICT Error)
+-- =============================================
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subject_code ON subject (code);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subject_teacher_unique ON subject_teacher_mapping (subject_id, teacher_id);
+
+-- =============================================
 -- 0. SAFETY CLEANUP
 -- =============================================
 -- DELETE FROM subject WHERE subject_year IS NULL;
@@ -45,16 +51,12 @@ INSERT INTO code_value (id, code_id, name, system_defined, created_at, updated_a
 -- =============================================
 -- 2.5 ROLES & USERS (For Teachers)
 -- =============================================
--- Ensure Roles Exist (Assuming IDs: 1=Admin, 2=Teacher, 3=Student)
 INSERT INTO role (id, name, created_at, updated_at) VALUES
                                                         (1, 'Admin', NOW(), NOW()),
                                                         (2, 'Teacher', NOW(), NOW()),
                                                         (3, 'Student', NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
--- Insert Users for Teachers (IDs 101-161 mapped to Profile IDs 1-61)
--- Default Password for all: "password" ($2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy)
--- NOTE: Table name updated to 'users' based on user confirmation
 INSERT INTO users (id, email, password, role_id, created_at, updated_at) VALUES
                                                                              (101, 'teacher1@utimea.com', '$2a$10$1pMGNyykTX7WYOTfJTe...HK6XwpskaRuMlGnQuP.Ay.GwZ5Wwwse', 2, NOW(), NOW()),
                                                                              (102, 'teacher2@utimea.com', '$2a$10$1pMGNyykTX7WYOTfJTe...HK6XwpskaRuMlGnQuP.Ay.GwZ5Wwwse', 2, NOW(), NOW()),
@@ -123,72 +125,71 @@ INSERT INTO users (id, email, password, role_id, created_at, updated_at) VALUES
 -- 3. TEACHERS (Pool of 61) - Updated with User IDs
 -- =============================================
 INSERT INTO profile (id, name, degree, department_id, user_id, created_at, updated_at) VALUES
--- Year 1 Lecturers (1-14)
-(1, 'Daw Me Me Ko', 'M.C.Sc', 15, 101, NOW(), NOW()),
-(2, 'Dr. Khin Hnin Hnin Thein', 'Ph.D(IT)', 15, 102, NOW(), NOW()),
-(3, 'Daw Lay Myat Myat Thein', 'M.C.Sc', 15, 103, NOW(), NOW()),
-(4, 'Dr. Zin Mar Kyu', 'Ph.D(IT)', 15, 104, NOW(), NOW()),
-(5, 'Daw Akari Myint Soe', 'M.C.Sc', 15, 105, NOW(), NOW()),
-(6, 'Daw Aye Thant Thant Moe', 'M.C.Sc', 15, 106, NOW(), NOW()),
-(7, 'Daw Su Su Naing', 'M.C.Sc', 15, 107, NOW(), NOW()),
-(8, 'Daw Khin Cho Latt', 'M.A(Eng)', 15, 108, NOW(), NOW()),
-(9, 'Daw Me Me Swe Win', 'M.A(Eng)', 15, 109, NOW(), NOW()),
-(10, 'Dr. Tin Oo', 'Ph.D(Myan)', 15, 110, NOW(), NOW()),
-(11, 'Daw Hnin Thidar', 'M.A(Myan)', 15, 111, NOW(), NOW()),
-(12, 'Dr. Kyi May San', 'Ph.D(Phys)', 15, 112, NOW(), NOW()),
-(13, 'Daw Nan Thazin', 'M.Sc(Phys)', 15, 113, NOW(), NOW()),
-(14, 'Dr. Khin Lei Lei Kyaw', 'Ph.D(Phys)', 15, 114, NOW(), NOW()),
+                                                                                           (1, 'Daw Me Me Ko', 'M.C.Sc', 15, 101, NOW(), NOW()),
+                                                                                           (2, 'Dr. Khin Hnin Hnin Thein', 'Ph.D(IT)', 15, 102, NOW(), NOW()),
+                                                                                           (3, 'Daw Lay Myat Myat Thein', 'M.C.Sc', 15, 103, NOW(), NOW()),
+                                                                                           (4, 'Dr. Zin Mar Kyu', 'Ph.D(IT)', 15, 104, NOW(), NOW()),
+                                                                                           (5, 'Daw Akari Myint Soe', 'M.C.Sc', 15, 105, NOW(), NOW()),
+                                                                                           (6, 'Daw Aye Thant Thant Moe', 'M.C.Sc', 15, 106, NOW(), NOW()),
+                                                                                           (7, 'Daw Su Su Naing', 'M.C.Sc', 15, 107, NOW(), NOW()),
+                                                                                           (8, 'Daw Khin Cho Latt', 'M.A(Eng)', 15, 108, NOW(), NOW()),
+                                                                                           (9, 'Daw Me Me Swe Win', 'M.A(Eng)', 15, 109, NOW(), NOW()),
+                                                                                           (10, 'Dr. Tin Oo', 'Ph.D(Myan)', 15, 110, NOW(), NOW()),
+                                                                                           (11, 'Daw Hnin Thidar', 'M.A(Myan)', 15, 111, NOW(), NOW()),
+                                                                                           (12, 'Dr. Kyi May San', 'Ph.D(Phys)', 15, 112, NOW(), NOW()),
+                                                                                           (13, 'Daw Nan Thazin', 'M.Sc(Phys)', 15, 113, NOW(), NOW()),
+                                                                                           (14, 'Dr. Khin Lei Lei Kyaw', 'Ph.D(Phys)', 15, 114, NOW(), NOW()),
 -- Year 2 Lecturers (15-29)
-(15, 'Daw Laet Laet Lin', 'M.C.Sc', 15, 115, NOW(), NOW()),
-(16, 'Daw Thae Nu Aye', 'M.C.Sc', 15, 116, NOW(), NOW()),
-(17, 'Dr. May Thet Htun', 'Ph.D(IT)', 15, 117, NOW(), NOW()),
-(18, 'Dr. Ei Moh Moh Aung', 'Ph.D(IT)', 15, 118, NOW(), NOW()),
-(19, 'Daw Ni Win Bo', 'M.C.Sc', 15, 119, NOW(), NOW()),
-(20, 'Daw Aye Aye Aung', 'M.C.Sc', 15, 120, NOW(), NOW()),
-(21, 'Dr. Khin Myo Myo Min', 'Ph.D(IT)', 15, 121, NOW(), NOW()),
-(22, 'Daw Aye Nyein San', 'M.C.Sc', 15, 122, NOW(), NOW()),
-(23, 'Daw Kay Zin Htun', 'M.C.Sc', 15, 123, NOW(), NOW()),
-(24, 'Daw Ciin Zam Man', 'M.C.Sc', 15, 124, NOW(), NOW()),
-(25, 'Daw San San Nwe', 'M.C.Sc', 15, 125, NOW(), NOW()),
-(26, 'Daw Htay Htay Win', 'M.C.Sc', 15, 126, NOW(), NOW()),
-(27, 'Daw Win PaPa May Phyoe Aung', 'M.C.Sc', 15, 127, NOW(), NOW()),
-(28, 'Daw Mon Zar Kyaw', 'M.A(Eng)', 15, 128, NOW(), NOW()),
-(29, 'Daw Mi Khin Thi Htun', 'M.A(Eng)', 15, 129, NOW(), NOW()),
+                                                                                           (15, 'Daw Laet Laet Lin', 'M.C.Sc', 15, 115, NOW(), NOW()),
+                                                                                           (16, 'Daw Thae Nu Aye', 'M.C.Sc', 15, 116, NOW(), NOW()),
+                                                                                           (17, 'Dr. May Thet Htun', 'Ph.D(IT)', 15, 117, NOW(), NOW()),
+                                                                                           (18, 'Dr. Ei Moh Moh Aung', 'Ph.D(IT)', 15, 118, NOW(), NOW()),
+                                                                                           (19, 'Daw Ni Win Bo', 'M.C.Sc', 15, 119, NOW(), NOW()),
+                                                                                           (20, 'Daw Aye Aye Aung', 'M.C.Sc', 15, 120, NOW(), NOW()),
+                                                                                           (21, 'Dr. Khin Myo Myo Min', 'Ph.D(IT)', 15, 121, NOW(), NOW()),
+                                                                                           (22, 'Daw Aye Nyein San', 'M.C.Sc', 15, 122, NOW(), NOW()),
+                                                                                           (23, 'Daw Kay Zin Htun', 'M.C.Sc', 15, 123, NOW(), NOW()),
+                                                                                           (24, 'Daw Ciin Zam Man', 'M.C.Sc', 15, 124, NOW(), NOW()),
+                                                                                           (25, 'Daw San San Nwe', 'M.C.Sc', 15, 125, NOW(), NOW()),
+                                                                                           (26, 'Daw Htay Htay Win', 'M.C.Sc', 15, 126, NOW(), NOW()),
+                                                                                           (27, 'Daw Win PaPa May Phyoe Aung', 'M.C.Sc', 15, 127, NOW(), NOW()),
+                                                                                           (28, 'Daw Mon Zar Kyaw', 'M.A(Eng)', 15, 128, NOW(), NOW()),
+                                                                                           (29, 'Daw Mi Khin Thi Htun', 'M.A(Eng)', 15, 129, NOW(), NOW()),
 -- Year 3 Lecturers (30-42)
-(30, 'Daw May Thet Swe', 'M.C.Sc', 15, 130, NOW(), NOW()),
-(31, 'Daw Khin Mar Wai', 'M.C.Sc', 15, 131, NOW(), NOW()),
-(32, 'Dr. Thinn Thinn Wai', 'Ph.D(IT)', 15, 132, NOW(), NOW()),
-(33, 'Dr. Thet Thet Zin', 'Ph.D(IT)', 15, 133, NOW(), NOW()),
-(34, 'Dr. May Thu Myint', 'Ph.D(IT)', 15, 134, NOW(), NOW()),
-(35, 'Dr. Win Win Myo', 'Ph.D(IT)', 15, 135, NOW(), NOW()),
-(36, 'Daw Phyu Phyu Aung', 'M.C.Sc', 15, 136, NOW(), NOW()),
-(37, 'Daw Lei Yi Win Lwin', 'M.C.Sc', 15, 137, NOW(), NOW()),
-(38, 'Dr. Ohnmar Nhway', 'Ph.D(IT)', 15, 138, NOW(), NOW()),
-(39, 'Dr. Hnin Thiri Zaw', 'Ph.D(IT)', 15, 139, NOW(), NOW()),
-(40, 'Dr. Tha Pyay Win', 'Ph.D(IT)', 15, 140, NOW(), NOW()),
-(41, 'Daw Shwe Sin Myat Than', 'M.C.Sc', 15, 141, NOW(), NOW()),
-(42, 'Daw Ohnmar Myint', 'M.C.Sc', 15, 142, NOW(), NOW()),
+                                                                                           (30, 'Daw May Thet Swe', 'M.C.Sc', 15, 130, NOW(), NOW()),
+                                                                                           (31, 'Daw Khin Mar Wai', 'M.C.Sc', 15, 131, NOW(), NOW()),
+                                                                                           (32, 'Dr. Thinn Thinn Wai', 'Ph.D(IT)', 15, 132, NOW(), NOW()),
+                                                                                           (33, 'Dr. Thet Thet Zin', 'Ph.D(IT)', 15, 133, NOW(), NOW()),
+                                                                                           (34, 'Dr. May Thu Myint', 'Ph.D(IT)', 15, 134, NOW(), NOW()),
+                                                                                           (35, 'Dr. Win Win Myo', 'Ph.D(IT)', 15, 135, NOW(), NOW()),
+                                                                                           (36, 'Daw Phyu Phyu Aung', 'M.C.Sc', 15, 136, NOW(), NOW()),
+                                                                                           (37, 'Daw Lei Yi Win Lwin', 'M.C.Sc', 15, 137, NOW(), NOW()),
+                                                                                           (38, 'Dr. Ohnmar Nhway', 'Ph.D(IT)', 15, 138, NOW(), NOW()),
+                                                                                           (39, 'Dr. Hnin Thiri Zaw', 'Ph.D(IT)', 15, 139, NOW(), NOW()),
+                                                                                           (40, 'Dr. Tha Pyay Win', 'Ph.D(IT)', 15, 140, NOW(), NOW()),
+                                                                                           (41, 'Daw Shwe Sin Myat Than', 'M.C.Sc', 15, 141, NOW(), NOW()),
+                                                                                           (42, 'Daw Ohnmar Myint', 'M.C.Sc', 15, 142, NOW(), NOW()),
 -- Year 4 Lecturers (43-59)
-(43, 'Dr. Win Win Thant', 'Ph.D(IT)', 15, 143, NOW(), NOW()),
-(44, 'Daw Khin Sandi Bo', 'M.C.Sc', 15, 144, NOW(), NOW()),
-(45, 'Dr. Kyawe Kyawe San', 'Ph.D(IT)', 15, 145, NOW(), NOW()),
-(46, 'Daw Lei Lei Lynn', 'M.C.Sc', 15, 146, NOW(), NOW()),
-(47, 'Dr. Nwe Nwe Myint Thein', 'Ph.D(IT)', 15, 147, NOW(), NOW()),
-(48, 'Dr. Thiri Thitsar Khaing', 'Ph.D(IT)', 15, 148, NOW(), NOW()),
-(49, 'Dr. Myat Pwint Phyu', 'Ph.D(IT)', 15, 149, NOW(), NOW()),
-(50, 'Dr. Hlaing Htake Khaung Tin', 'Ph.D(IT)', 15, 150, NOW(), NOW()),
-(51, 'Dr. Aung Nway Oo', 'Ph.D(IT)', 15, 151, NOW(), NOW()),
-(52, 'Dr. Aye Chan Mon', 'Ph.D(IT)', 15, 152, NOW(), NOW()),
-(53, 'Dr. Mhway Mhway Tar', 'Ph.D(IT)', 15, 153, NOW(), NOW()),
-(54, 'Dr. Aye Myat Myat Paing', 'Ph.D(IT)', 15, 154, NOW(), NOW()),
-(55, 'Dr. Than Than Nwe', 'Ph.D(IT)', 15, 155, NOW(), NOW()),
-(56, 'Daw Khin Ei Ei Chaw', 'M.C.Sc', 15, 156, NOW(), NOW()),
-(57, 'Dr. Myat Thida Mon', 'Ph.D(IT)', 15, 157, NOW(), NOW()),
-(58, 'Dr. Aung Htein Maw', 'Ph.D(IT)', 15, 158, NOW(), NOW()),
-(59, 'Dr. Hay Mar Moh Moh Lwin', 'Ph.D(IT)', 15, 159, NOW(), NOW()),
+                                                                                           (43, 'Dr. Win Win Thant', 'Ph.D(IT)', 15, 143, NOW(), NOW()),
+                                                                                           (44, 'Daw Khin Sandi Bo', 'M.C.Sc', 15, 144, NOW(), NOW()),
+                                                                                           (45, 'Dr. Kyawe Kyawe San', 'Ph.D(IT)', 15, 145, NOW(), NOW()),
+                                                                                           (46, 'Daw Lei Lei Lynn', 'M.C.Sc', 15, 146, NOW(), NOW()),
+                                                                                           (47, 'Dr. Nwe Nwe Myint Thein', 'Ph.D(IT)', 15, 147, NOW(), NOW()),
+                                                                                           (48, 'Dr. Thiri Thitsar Khaing', 'Ph.D(IT)', 15, 148, NOW(), NOW()),
+                                                                                           (49, 'Dr. Myat Pwint Phyu', 'Ph.D(IT)', 15, 149, NOW(), NOW()),
+                                                                                           (50, 'Dr. Hlaing Htake Khaung Tin', 'Ph.D(IT)', 15, 150, NOW(), NOW()),
+                                                                                           (51, 'Dr. Aung Nway Oo', 'Ph.D(IT)', 15, 151, NOW(), NOW()),
+                                                                                           (52, 'Dr. Aye Chan Mon', 'Ph.D(IT)', 15, 152, NOW(), NOW()),
+                                                                                           (53, 'Dr. Mhway Mhway Tar', 'Ph.D(IT)', 15, 153, NOW(), NOW()),
+                                                                                           (54, 'Dr. Aye Myat Myat Paing', 'Ph.D(IT)', 15, 154, NOW(), NOW()),
+                                                                                           (55, 'Dr. Than Than Nwe', 'Ph.D(IT)', 15, 155, NOW(), NOW()),
+                                                                                           (56, 'Daw Khin Ei Ei Chaw', 'M.C.Sc', 15, 156, NOW(), NOW()),
+                                                                                           (57, 'Dr. Myat Thida Mon', 'Ph.D(IT)', 15, 157, NOW(), NOW()),
+                                                                                           (58, 'Dr. Aung Htein Maw', 'Ph.D(IT)', 15, 158, NOW(), NOW()),
+                                                                                           (59, 'Dr. Hay Mar Moh Moh Lwin', 'Ph.D(IT)', 15, 159, NOW(), NOW()),
 -- New CSec Lecturers (60-61)
-(60, 'Dr. Sandar Win', 'Ph.D(IT)', 15, 160, NOW(), NOW()),
-(61, 'Dr. Myint Myint Lwin', 'Ph.D(IT)', 15, 161, NOW(), NOW())
+                                                                                           (60, 'Dr. Sandar Win', 'Ph.D(IT)', 15, 160, NOW(), NOW()),
+                                                                                           (61, 'Dr. Myint Myint Lwin', 'Ph.D(IT)', 15, 161, NOW(), NOW())
     ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
                             degree = EXCLUDED.degree,
@@ -200,33 +201,32 @@ INSERT INTO profile (id, name, degree, department_id, user_id, created_at, updat
 -- 4. ROOMS
 -- =============================================
 INSERT INTO room (id, name, capacity, room_type_id, is_special_room, created_at, updated_at) VALUES
--- Specific CSec Rooms
-(100, 'Room 426', 50, 13, false, NOW(), NOW()), (101, 'Room 433', 50, 13, false, NOW(), NOW()),
-(102, 'Room 432', 50, 13, false, NOW(), NOW()), (103, 'Room 431', 50, 13, false, NOW(), NOW()),
-(104, 'Room 345', 50, 13, false, NOW(), NOW()),
+                                                                                                 (100, 'Room 426', 50, 13, false, NOW(), NOW()), (101, 'Room 433', 50, 13, false, NOW(), NOW()),
+                                                                                                 (102, 'Room 432', 50, 13, false, NOW(), NOW()), (103, 'Room 431', 50, 13, false, NOW(), NOW()),
+                                                                                                 (104, 'Room 345', 50, 13, false, NOW(), NOW()),
 -- Normal Classrooms
-(1, 'Room 245', 50, 13, false, NOW(), NOW()), (2, 'Room 321', 50, 13, false, NOW(), NOW()),
-(3, 'Room 322', 50, 13, false, NOW(), NOW()), (4, 'Room 231', 50, 13, false, NOW(), NOW()),
-(5, 'Room 323', 50, 13, false, NOW(), NOW()), (6, 'Room 334', 50, 13, false, NOW(), NOW()),
-(7, 'Room 324', 50, 13, false, NOW(), NOW()), (8, 'Room 234', 50, 13, false, NOW(), NOW()),
-(9, 'Room 325', 50, 13, false, NOW(), NOW()), (10, 'Room 232', 50, 13, false, NOW(), NOW()),
-(11, 'Room 326', 50, 13, false, NOW(), NOW()), (12, 'Room 331', 50, 13, false, NOW(), NOW()),
-(13, 'Room 332', 50, 13, false, NOW(), NOW()), (14, 'Room 335', 50, 13, false, NOW(), NOW()),
-(15, 'Room 333', 50, 13, false, NOW(), NOW()), (16, 'Room 336', 50, 13, false, NOW(), NOW()),
-(17, 'Room 214', 50, 13, false, NOW(), NOW()), (18, 'Room 215', 50, 13, false, NOW(), NOW()),
-(19, 'Room 346', 50, 13, false, NOW(), NOW()), (20, 'Room 342', 50, 13, false, NOW(), NOW()),
-(21, 'Room 352', 50, 13, false, NOW(), NOW()), (22, 'Room 353', 50, 13, false, NOW(), NOW()),
-(23, 'Room 233', 50, 13, false, NOW(), NOW()), (24, 'Room 235', 50, 13, false, NOW(), NOW()),
+                                                                                                 (1, 'Room 245', 50, 13, false, NOW(), NOW()), (2, 'Room 321', 50, 13, false, NOW(), NOW()),
+                                                                                                 (3, 'Room 322', 50, 13, false, NOW(), NOW()), (4, 'Room 231', 50, 13, false, NOW(), NOW()),
+                                                                                                 (5, 'Room 323', 50, 13, false, NOW(), NOW()), (6, 'Room 334', 50, 13, false, NOW(), NOW()),
+                                                                                                 (7, 'Room 324', 50, 13, false, NOW(), NOW()), (8, 'Room 234', 50, 13, false, NOW(), NOW()),
+                                                                                                 (9, 'Room 325', 50, 13, false, NOW(), NOW()), (10, 'Room 232', 50, 13, false, NOW(), NOW()),
+                                                                                                 (11, 'Room 326', 50, 13, false, NOW(), NOW()), (12, 'Room 331', 50, 13, false, NOW(), NOW()),
+                                                                                                 (13, 'Room 332', 50, 13, false, NOW(), NOW()), (14, 'Room 335', 50, 13, false, NOW(), NOW()),
+                                                                                                 (15, 'Room 333', 50, 13, false, NOW(), NOW()), (16, 'Room 336', 50, 13, false, NOW(), NOW()),
+                                                                                                 (17, 'Room 214', 50, 13, false, NOW(), NOW()), (18, 'Room 215', 50, 13, false, NOW(), NOW()),
+                                                                                                 (19, 'Room 346', 50, 13, false, NOW(), NOW()), (20, 'Room 342', 50, 13, false, NOW(), NOW()),
+                                                                                                 (21, 'Room 352', 50, 13, false, NOW(), NOW()), (22, 'Room 353', 50, 13, false, NOW(), NOW()),
+                                                                                                 (23, 'Room 233', 50, 13, false, NOW(), NOW()), (24, 'Room 235', 50, 13, false, NOW(), NOW()),
 -- Computer Labs
-(25, 'Room 244', 40, 14, true, NOW(), NOW()), (26, 'Room 236', 40, 14, true, NOW(), NOW()),
-(27, 'Room 351', 40, 14, true, NOW(), NOW()), (28, 'Lab-D', 40, 14, true, NOW(), NOW()),
-(29, 'Lab-E', 40, 14, true, NOW(), NOW()), (30, 'Lab-F', 40, 14, true, NOW(), NOW()),
+                                                                                                 (25, 'Room 244', 40, 14, true, NOW(), NOW()), (26, 'Room 236', 40, 14, true, NOW(), NOW()),
+                                                                                                 (27, 'Room 351', 40, 14, true, NOW(), NOW()), (28, 'Lab-D', 40, 14, true, NOW(), NOW()),
+                                                                                                 (29, 'Lab-E', 40, 14, true, NOW(), NOW()), (30, 'Lab-F', 40, 14, true, NOW(), NOW()),
 -- Physics Labs
-(220, 'Physics Lab 1', 40, 13, true, NOW(), NOW()), (230, 'Physics Lab 2', 40, 13, true, NOW(), NOW())
+                                                                                                 (220, 'Physics Lab 1', 40, 13, true, NOW(), NOW()), (230, 'Physics Lab 2', 40, 13, true, NOW(), NOW())
     ON CONFLICT (id) DO NOTHING;
 
 -- =============================================
--- 5. SUBJECTS (With Self-Healing UPDATE)
+-- 5. SUBJECTS (With Explicit IDs)
 -- =============================================
 INSERT INTO subject (id, code, description, room_type_id, special_room_count, is_first_sem, subject_year, created_at, updated_at) VALUES
 -- Sem 1
@@ -320,7 +320,193 @@ INSERT INTO major_section (name, major_section_year_id, created_at, updated_at) 
     ON CONFLICT DO NOTHING;
 
 -- =============================================
--- 8. SEQUENCE RESET
+-- 7.5 SYNC SEQUENCE (CRITICAL FIX)
+-- =============================================
+-- We must sync the sequence before inserting without explicit IDs
+SELECT setval('subject_id_seq', (SELECT MAX(id) FROM subject));
+
+-- =============================================
+-- 8. INSERT MISSING SEMESTER 1 SUBJECTS
+-- =============================================
+
+INSERT INTO subject (code, description, room_type_id, special_room_count, is_first_sem, subject_year, created_at, updated_at) VALUES
+
+-- === YEAR 3 SEMESTER 1 (Series 5xxx) - TOTAL 6 SUBJECTS (3 Common + 3 Major) ===
+-- Common Subjects (3)
+('CST-5101', 'Algorithm Analysis', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('CST-5201', 'Database Management Systems', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('CST-5301', 'Computer Graphics', 14, 4, true, 'THIRD_YEAR', NOW(), NOW()), -- PC Lab
+
+-- Major Specific (SE) - Adding SE-5103
+('SE-5101', 'Software Requirements Eng', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('SE-5102', 'Advanced Programming', 14, 4, true, 'THIRD_YEAR', NOW(), NOW()),
+('SE-5103', 'Software Process Management', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+
+-- Major Specific (KE) - Adding KE-5103
+('KE-5101', 'Knowledge Representation', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('KE-5102', 'AI Principles', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('KE-5103', 'Expert Systems', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+
+-- Major Specific (HPC) - Adding HPC-5103
+('HPC-5101', 'Parallel Computing', 14, 4, true, 'THIRD_YEAR', NOW(), NOW()),
+('HPC-5102', 'Cluster Arch', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('HPC-5103', 'Distributed Systems', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+
+-- Major Specific (BIS) - Adding BIS-5103
+('BIS-5101', 'Business Intelligence', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('BIS-5102', 'ERP Systems', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('BIS-5103', 'IT Project Management', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+
+-- Major Specific (CN) - Adding CN-5103
+('CN-5101', 'Advanced Networking', 14, 4, true, 'THIRD_YEAR', NOW(), NOW()),
+('CN-5102', 'Routing & Switching', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()), -- Kept as Lecture (13) to avoid bottleneck
+('CN-5103', 'Network Administration', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+
+-- Major Specific (ES) - Adding ES-5103
+('ES-5101', 'Embedded Systems Design', 14, 4, true, 'THIRD_YEAR', NOW(), NOW()),
+('ES-5102', 'Digital Logic', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('ES-5103', 'Real-Time Systems', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+
+-- Major Specific (CSec) - Adding CSec-5103
+('CSec-5101', 'Cryptography', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+('CSec-5102', 'Network Defense', 14, 4, true, 'THIRD_YEAR', NOW(), NOW()),
+('CSec-5103', 'Info Security Management', 13, 0, true, 'THIRD_YEAR', NOW(), NOW()),
+
+
+-- === YEAR 4 SEMESTER 1 (Series 7xxx) - TOTAL 6 SUBJECTS (3 Common + 3 Major) ===
+-- Common Subjects (Adding CST-7301)
+('CST-7101', 'Project Management', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('CST-7201', 'Software Quality Assurance', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('CST-7301', 'Professional Ethics', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+
+-- Major Specific (SE) - Adding SE-7102, SE-7103
+('SE-7101', 'Software Architecture', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('SE-7102', 'Software Metrics', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('SE-7103', 'Cloud App Development', 14, 4, true, 'FOURTH_YEAR', NOW(), NOW()),
+
+-- Major Specific (KE) - Adding KE-7102, KE-7103
+('KE-7101', 'Natural Language Processing', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('KE-7102', 'Pattern Recognition', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('KE-7103', 'Neural Networks', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+
+-- Major Specific (HPC) - Adding HPC-7102, HPC-7103
+('HPC-7101', 'Cloud Computing', 14, 4, true, 'FOURTH_YEAR', NOW(), NOW()),
+('HPC-7102', 'Grid Computing', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('HPC-7103', 'Big Data Analytics', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+
+-- Major Specific (BIS) - Adding BIS-7102, BIS-7103
+('BIS-7101', 'E-Commerce Strategies', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('BIS-7102', 'Organizational Change', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('BIS-7103', 'Knowledge Management', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+
+-- Major Specific (CN) - Adding CN-7102, CN-7103
+('CN-7101', 'Wireless Communications', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('CN-7102', 'Network Programming', 14, 4, true, 'FOURTH_YEAR', NOW(), NOW()),
+('CN-7103', 'Optical Networks', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+
+-- Major Specific (ES) - Adding ES-7102, ES-7103
+('ES-7101', 'IoT Systems', 14, 4, true, 'FOURTH_YEAR', NOW(), NOW()),
+('ES-7102', 'Robotics Systems', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+('ES-7103', 'VLSI Design', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW()),
+
+-- Major Specific (CSec) - Adding CSec-7102, CSec-7103
+('CSec-7101', 'Ethical Hacking', 14, 4, true, 'FOURTH_YEAR', NOW(), NOW()),
+('CSec-7102', 'Digital Forensics', 14, 4, true, 'FOURTH_YEAR', NOW(), NOW()),
+('CSec-7103', 'Malware Analysis', 13, 0, true, 'FOURTH_YEAR', NOW(), NOW())
+    ON CONFLICT (code) DO NOTHING;
+
+-- =============================================
+-- 9. LINK TEACHERS TO NEW SUBJECTS
+-- =============================================
+-- We assign Senior Lecturers (IDs 30-61) to these Year 3 & 4 subjects.
+-- Using dynamic lookup to find subject ID by code.
+
+-- --- YEAR 3 MAPPINGS (Teachers 30-42 + Specialist 60) ---
+INSERT INTO subject_teacher_mapping (subject_id, teacher_id)
+SELECT id, 30 FROM subject WHERE code = 'CST-5101' UNION ALL
+SELECT id, 31 FROM subject WHERE code = 'CST-5101' UNION ALL -- Shared load
+SELECT id, 32 FROM subject WHERE code = 'CST-5201' UNION ALL
+SELECT id, 33 FROM subject WHERE code = 'CST-5201' UNION ALL -- Shared load
+SELECT id, 34 FROM subject WHERE code = 'CST-5301' UNION ALL
+SELECT id, 35 FROM subject WHERE code = 'CST-5301' UNION ALL -- Shared load
+
+-- SE
+SELECT id, 36 FROM subject WHERE code = 'SE-5101' UNION ALL
+SELECT id, 36 FROM subject WHERE code = 'SE-5102' UNION ALL
+SELECT id, 36 FROM subject WHERE code = 'SE-5103' UNION ALL
+
+-- KE
+SELECT id, 37 FROM subject WHERE code = 'KE-5101' UNION ALL
+SELECT id, 37 FROM subject WHERE code = 'KE-5102' UNION ALL
+SELECT id, 37 FROM subject WHERE code = 'KE-5103' UNION ALL
+
+-- HPC
+SELECT id, 38 FROM subject WHERE code = 'HPC-5101' UNION ALL
+SELECT id, 38 FROM subject WHERE code = 'HPC-5102' UNION ALL
+SELECT id, 38 FROM subject WHERE code = 'HPC-5103' UNION ALL
+
+-- BIS
+SELECT id, 39 FROM subject WHERE code = 'BIS-5101' UNION ALL
+SELECT id, 39 FROM subject WHERE code = 'BIS-5102' UNION ALL
+SELECT id, 39 FROM subject WHERE code = 'BIS-5103' UNION ALL
+
+-- CN
+SELECT id, 40 FROM subject WHERE code = 'CN-5101' UNION ALL
+SELECT id, 40 FROM subject WHERE code = 'CN-5102' UNION ALL
+SELECT id, 40 FROM subject WHERE code = 'CN-5103' UNION ALL
+
+-- ES
+SELECT id, 41 FROM subject WHERE code = 'ES-5101' UNION ALL
+SELECT id, 41 FROM subject WHERE code = 'ES-5102' UNION ALL
+SELECT id, 41 FROM subject WHERE code = 'ES-5103' UNION ALL
+
+-- CSec (Using Teacher 60)
+SELECT id, 60 FROM subject WHERE code = 'CSec-5101' UNION ALL
+SELECT id, 60 FROM subject WHERE code = 'CSec-5102' UNION ALL
+SELECT id, 60 FROM subject WHERE code = 'CSec-5103' UNION ALL
+
+-- --- YEAR 4 MAPPINGS (Teachers 43-59 + Specialist 60/61) ---
+SELECT id, 43 FROM subject WHERE code = 'CST-7101' UNION ALL
+SELECT id, 44 FROM subject WHERE code = 'CST-7101' UNION ALL -- Shared load
+SELECT id, 45 FROM subject WHERE code = 'CST-7201' UNION ALL
+SELECT id, 46 FROM subject WHERE code = 'CST-7201' UNION ALL -- Shared load
+-- Assigning to 53 and 54 to avoid overloading 47
+SELECT id, 53 FROM subject WHERE code = 'CST-7301' UNION ALL
+SELECT id, 54 FROM subject WHERE code = 'CST-7301' UNION ALL
+
+-- Majors
+SELECT id, 47 FROM subject WHERE code = 'SE-7101' UNION ALL
+SELECT id, 47 FROM subject WHERE code = 'SE-7102' UNION ALL
+SELECT id, 47 FROM subject WHERE code = 'SE-7103' UNION ALL
+
+SELECT id, 48 FROM subject WHERE code = 'KE-7101' UNION ALL
+SELECT id, 48 FROM subject WHERE code = 'KE-7102' UNION ALL
+SELECT id, 48 FROM subject WHERE code = 'KE-7103' UNION ALL
+
+SELECT id, 49 FROM subject WHERE code = 'HPC-7101' UNION ALL
+SELECT id, 49 FROM subject WHERE code = 'HPC-7102' UNION ALL
+SELECT id, 49 FROM subject WHERE code = 'HPC-7103' UNION ALL
+
+SELECT id, 50 FROM subject WHERE code = 'BIS-7101' UNION ALL
+SELECT id, 50 FROM subject WHERE code = 'BIS-7102' UNION ALL
+SELECT id, 50 FROM subject WHERE code = 'BIS-7103' UNION ALL
+
+SELECT id, 51 FROM subject WHERE code = 'CN-7101' UNION ALL
+SELECT id, 51 FROM subject WHERE code = 'CN-7102' UNION ALL
+SELECT id, 51 FROM subject WHERE code = 'CN-7103' UNION ALL
+
+SELECT id, 52 FROM subject WHERE code = 'ES-7101' UNION ALL
+SELECT id, 52 FROM subject WHERE code = 'ES-7102' UNION ALL
+SELECT id, 52 FROM subject WHERE code = 'ES-7103' UNION ALL
+
+SELECT id, 61 FROM subject WHERE code = 'CSec-7101' UNION ALL
+SELECT id, 61 FROM subject WHERE code = 'CSec-7102' UNION ALL
+SELECT id, 61 FROM subject WHERE code = 'CSec-7103'
+
+    ON CONFLICT DO NOTHING;
+
+-- =============================================
+-- 10. FINAL SEQUENCE RESET
 -- =============================================
 SELECT setval('code_id_seq', (SELECT MAX(id) FROM code));
 SELECT setval('code_value_id_seq', (SELECT MAX(id) FROM code_value));
